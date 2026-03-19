@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mill Master - Business Tracker</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- Sidebar / Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <i class="ph-fill ph-factory"></i>
+                <h2>Mill Master</h2>
+            </div>
+            
+            <ul class="nav-links">
+                <li class="nav-item active" data-target="daily-view">
+                    <i class="ph ph-calendar-check"></i>
+                    <span>Daily Summary</span>
+                </li>
+                <li class="nav-item" data-target="monthly-view">
+                    <i class="ph ph-chart-line-up"></i>
+                    <span>Monthly Report</span>
+                </li>
+                <li class="nav-item" data-target="expenses-view">
+                    <i class="ph ph-receipt"></i>
+                    <span>Expenses</span>
+                </li>
+                <li class="nav-item" data-target="dues-view">
+                    <i class="ph ph-users"></i>
+                    <span>Customer Dues</span>
+                </li>
+            </ul>
+
+            <button class="btn-primary add-btn-sidebar" onclick="openModal()">
+                <i class="ph ph-plus"></i>
+                <span>Add Record</span>
+            </button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-title">
+                    <h1 id="page-title">Daily Summary</h1>
+                    <p id="page-subtitle">Track your everyday business metrics</p>
+                </div>
+                
+                <div class="header-actions">
+                    <div class="date-picker-wrap">
+                        <i class="ph ph-calendar"></i>
+                        <input type="date" id="global-date" />
+                    </div>
+                </div>
+            </header>
+
+            <div class="views-container">
+                
+                <!-- View: Daily Summary -->
+                <section id="daily-view" class="view active">
+                    <div class="stats-grid">
+                        <div class="stat-card income-card">
+                            <div class="stat-icon"><i class="ph ph-wallet"></i></div>
+                            <div class="stat-info">
+                                <p>Total Income</p>
+                                <h3 id="daily-income">₹0</h3>
+                            </div>
+                        </div>
+                        <div class="stat-card expense-card">
+                            <div class="stat-icon"><i class="ph ph-trend-down"></i></div>
+                            <div class="stat-info">
+                                <p>Total Expenses</p>
+                                <h3 id="daily-expense">₹0</h3>
+                            </div>
+                        </div>
+                        <div class="stat-card profit-card">
+                            <div class="stat-icon"><i class="ph ph-chart-bar"></i></div>
+                            <div class="stat-info">
+                                <p>Net Profit</p>
+                                <h3 id="daily-profit">₹0</h3>
+                            </div>
+                        </div>
+                        <div class="stat-card netcash-card">
+                            <div class="stat-icon"><i class="ph ph-money"></i></div>
+                            <div class="stat-info">
+                                <p>Net Cash in Hand</p>
+                                <h3 id="daily-netcash">₹0</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="recent-transactions">
+                        <div class="section-header">
+                            <h3>Today's Transactions</h3>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Category/Desc</th>
+                                        <th>Amount</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="daily-tx-table">
+                                    <!-- Dynamic rows -->
+                                    <tr><td colspan="4" class="empty-state">No transactions today.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- View: Monthly Report -->
+                <section id="monthly-view" class="view hidden">
+                    <div class="month-selector">
+                        <input type="month" id="monthly-picker" />
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon income-icon"><i class="ph ph-wallet"></i></div>
+                            <div class="stat-info">
+                                <p>Monthly Income</p>
+                                <h3 id="monthly-income">₹0</h3>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon expense-icon"><i class="ph ph-trend-down"></i></div>
+                            <div class="stat-info">
+                                <p>Monthly Expenses</p>
+                                <h3 id="monthly-expense">₹0</h3>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon profit-icon"><i class="ph ph-trend-up"></i></div>
+                            <div class="stat-info">
+                                <p>Monthly Profit</p>
+                                <h3 id="monthly-profit">₹0</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="insights-container">
+                        <div class="insight-card">
+                            <h3>Highest Expense Category</h3>
+                            <h2 id="highest-expense-cat">N/A</h2>
+                            <p id="highest-expense-val" class="sub-text">₹0</p>
+                        </div>
+                        <div class="insight-card">
+                            <h3>Pending Dues Generated</h3>
+                            <h2 id="monthly-dues-generated">₹0</h2>
+                            <p class="sub-text">Total credit sales this month</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- View: Expenses -->
+                <section id="expenses-view" class="view hidden">
+                    <div class="expense-breakdown">
+                        <div class="section-header">
+                            <h3>Expense Categories (All Time)</h3>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Total Amount (₹)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expense-cat-table">
+                                    <!-- Dynamic Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- View: Customer Dues -->
+                <section id="dues-view" class="view hidden">
+                    <div class="stats-grid">
+                        <div class="stat-card highlight">
+                            <div class="stat-icon"><i class="ph ph-users"></i></div>
+                            <div class="stat-info">
+                                <p>Total Pending Dues</p>
+                                <h3 id="total-pending-amount">₹0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="dues-list-container">
+                        <div class="section-header">
+                            <h3>Customer Balances</h3>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Customer Name</th>
+                                        <th>Pending Balance (₹)</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dues-table">
+                                    <tr><td colspan="3" class="empty-state">No pending dues.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+
+        <!-- Mobile FAB -->
+        <button class="fab-btn" onclick="openModal()">
+            <i class="ph ph-plus"></i>
+        </button>
+    </div>
+
+    <!-- Modal for adding transactions -->
+    <div class="modal-overlay" id="record-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New Record</h2>
+                <button class="close-btn" onclick="closeModal()"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="record-form">
+                    <div class="form-group">
+                        <label>Record Type</label>
+                        <select id="record-type" onchange="handleRecordTypeChange()" required>
+                            <option value="income_cash">Income (Cash Sale)</option>
+                            <option value="expense">Expense</option>
+                            <option value="due_add">Add Customer Due (Credit Sale)</option>
+                            <option value="due_pay">Receive Due Payment (Old Dues)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" id="record-date" required />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Amount (₹)</label>
+                        <input type="number" id="record-amount" min="1" placeholder="Enter amount" required />
+                    </div>
+
+                    <!-- Dynamic Fields based on selection -->
+                    <div class="form-group" id="group-category" style="display: none;">
+                        <label>Expense Category</label>
+                        <select id="record-category">
+                            <option value="Electricity">Electricity ⚡</option>
+                            <option value="Salary">Worker Salary 👷</option>
+                            <option value="Transport">Transport 🚚</option>
+                            <option value="Maintenance">Maintenance 🔧</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="group-customer" style="display: none;">
+                        <label>Customer Name</label>
+                        <input type="text" id="record-customer" placeholder="Enter customer name" />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notes (Optional)</label>
+                        <input type="text" id="record-notes" placeholder="Any details..." />
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Save Record</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
