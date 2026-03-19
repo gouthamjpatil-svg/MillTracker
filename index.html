@@ -1,31 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mill Master - Business Tracker</title>
-    
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    
+
     <!-- Styles -->
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-    <div class="app-container">
-        
+    <!-- Login Overlay -->
+    <div id="login-overlay" class="login-overlay active">
+        <div class="login-card">
+            <div class="login-header">
+                <i class="ph-fill ph-lock-key"></i>
+                <h2 id="login-title">Mill Master</h2>
+                <p id="login-subtitle">Secure Business Tracker</p>
+            </div>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label id="pin-label">Enter your 4-digit PIN</label>
+                    <input type="password" id="pin-input" pattern="[0-9]*" inputmode="numeric" maxlength="4"
+                        placeholder="----" required autocomplete="off" />
+                </div>
+                <button type="submit" class="btn-primary w-100" id="login-btn">Unlock App</button>
+                <p id="login-error" class="text-danger mt-3 hidden text-center" style="font-size: 0.9rem;">Incorrect
+                    PIN. Try again.</p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div class="app-container" id="app-container" style="display: none;">
+
         <!-- Sidebar / Navigation -->
         <nav class="sidebar">
             <div class="sidebar-header">
                 <i class="ph-fill ph-factory"></i>
                 <h2>Mill Master</h2>
             </div>
-            
+
             <ul class="nav-links">
                 <li class="nav-item active" data-target="daily-view">
                     <i class="ph ph-calendar-check"></i>
@@ -43,6 +68,10 @@
                     <i class="ph ph-users"></i>
                     <span>Customer Dues</span>
                 </li>
+                <li class="nav-item" data-target="savings-view">
+                    <i class="ph ph-bank"></i>
+                    <span>Bank Savings</span>
+                </li>
             </ul>
 
             <button class="btn-primary add-btn-sidebar" onclick="openModal()">
@@ -58,7 +87,7 @@
                     <h1 id="page-title">Daily Summary</h1>
                     <p id="page-subtitle">Track your everyday business metrics</p>
                 </div>
-                
+
                 <div class="header-actions">
                     <div class="date-picker-wrap">
                         <i class="ph ph-calendar"></i>
@@ -68,7 +97,7 @@
             </header>
 
             <div class="views-container">
-                
+
                 <!-- View: Daily Summary -->
                 <section id="daily-view" class="view active">
                     <div class="stats-grid">
@@ -118,7 +147,9 @@
                                 </thead>
                                 <tbody id="daily-tx-table">
                                     <!-- Dynamic rows -->
-                                    <tr><td colspan="4" class="empty-state">No transactions today.</td></tr>
+                                    <tr>
+                                        <td colspan="4" class="empty-state">No transactions today.</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -130,7 +161,7 @@
                     <div class="month-selector">
                         <input type="month" id="monthly-picker" />
                     </div>
-                    
+
                     <div class="stats-grid">
                         <div class="stat-card">
                             <div class="stat-icon income-icon"><i class="ph ph-wallet"></i></div>
@@ -151,6 +182,13 @@
                             <div class="stat-info">
                                 <p>Monthly Profit</p>
                                 <h3 id="monthly-profit">₹0</h3>
+                            </div>
+                        </div>
+                        <div class="stat-card savings-card">
+                            <div class="stat-icon savings-icon"><i class="ph ph-piggy-bank"></i></div>
+                            <div class="stat-info">
+                                <p>Monthly Savings</p>
+                                <h3 id="monthly-savings">₹0</h3>
                             </div>
                         </div>
                     </div>
@@ -202,7 +240,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="dues-list-container">
                         <div class="section-header">
                             <h3>Customer Balances</h3>
@@ -217,7 +255,52 @@
                                     </tr>
                                 </thead>
                                 <tbody id="dues-table">
-                                    <tr><td colspan="3" class="empty-state">No pending dues.</td></tr>
+                                    <tr>
+                                        <td colspan="3" class="empty-state">No pending dues.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- View: Bank Savings -->
+                <section id="savings-view" class="view hidden">
+                    <div class="stats-grid">
+                        <div class="stat-card savings-card">
+                            <div class="stat-icon savings-icon"><i class="ph ph-bank"></i></div>
+                            <div class="stat-info">
+                                <p>Total Bank Balance</p>
+                                <h3 id="total-bank-balance">₹0</h3>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon profit-icon"><i class="ph ph-piggy-bank"></i></div>
+                            <div class="stat-info">
+                                <p>Total Saved (All-Time)</p>
+                                <h3 id="total-savings-deposits">₹0</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="recent-transactions">
+                        <div class="section-header">
+                            <h3>Bank Statement</h3>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Details / Date</th>
+                                        <th>Amount</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="savings-table">
+                                    <tr>
+                                        <td colspan="4" class="empty-state">No bank transactions yet.</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -237,7 +320,7 @@
     <div class="modal-overlay" id="record-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Add New Record</h2>
+                <h2 id="modal-title">Add New Record</h2>
                 <button class="close-btn" onclick="closeModal()"><i class="ph ph-x"></i></button>
             </div>
             <div class="modal-body">
@@ -245,8 +328,11 @@
                     <div class="form-group">
                         <label>Record Type</label>
                         <select id="record-type" onchange="handleRecordTypeChange()" required>
-                            <option value="income_cash">Income (Cash Sale)</option>
+                            <option value="income_cash">Income (Cash Sale) 💵</option>
+                            <option value="income_online">Income (Online Sale) 📱</option>
                             <option value="expense">Expense</option>
+                            <option value="savings">Deposit to Savings 🏦</option>
+                            <option value="savings_withdraw">Withdraw from Savings 🏦</option>
                             <option value="due_add">Add Customer Due (Credit Sale)</option>
                             <option value="due_pay">Receive Due Payment (Old Dues)</option>
                         </select>
@@ -278,7 +364,7 @@
                         <label>Customer Name</label>
                         <input type="text" id="record-customer" placeholder="Enter customer name" />
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Notes (Optional)</label>
                         <input type="text" id="record-notes" placeholder="Any details..." />
@@ -295,4 +381,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>
