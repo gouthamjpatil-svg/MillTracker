@@ -9,26 +9,62 @@ let state = {
     selectedDate: new Date().toISOString().split('T')[0],
     selectedMonth: new Date().toISOString().substring(0, 7) // YYYY-MM
 };
+let editingTransactionId = null;
+let appPin = null;
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', () => {
+    appPin = localStorage.getItem('mill_pin');
+    const loginForm = document.getElementById('login-form');
+    const pinInput = document.getElementById('pin-input');
+
+    if (!appPin) {
+        document.getElementById('pin-label').innerText = "Create a 4-digit PIN";
+        document.getElementById('login-btn').innerText = "Set PIN & Enter";
+    }
+
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const entered = pinInput.value;
+        if (entered.length < 4) return;
+
+        if (!appPin) {
+            // Set new PIN
+            localStorage.setItem('mill_pin', entered);
+            appPin = entered;
+            unlockApp();
+        } else {
+            // Verify PIN
+            if (entered === appPin) {
+                unlockApp();
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+                pinInput.value = '';
+                pinInput.focus();
+            }
+        }
+    });
+});
+
+function unlockApp() {
+    document.getElementById('login-overlay').classList.remove('active');
+    document.getElementById('app-container').style.display = 'flex';
+
     loadData();
     setupEventListeners();
-    
-    // Set default dates
+
     document.getElementById('global-date').value = state.selectedDate;
     document.getElementById('monthly-picker').value = state.selectedMonth;
     document.getElementById('record-date').value = state.selectedDate;
 
-    // Initial Render
     renderAllViews();
-});
+}
 
 // Load from LocalStorage
 function loadData() {
     const storedTx = localStorage.getItem('mill_transactions');
     const storedCus = localStorage.getItem('mill_customers');
-    
+
     if (storedTx) state.transactions = JSON.parse(storedTx);
     if (storedCus) state.customers = JSON.parse(storedCus);
 }
@@ -45,11 +81,11 @@ function setupEventListeners() {
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', (e) => {
             const targetId = item.getAttribute('data-target');
-            
+
             // Update active nav
             document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
             item.classList.add('active');
-            
+
             // Update views
             document.querySelectorAll('.view').forEach(view => {
                 view.classList.remove('active');
@@ -61,13 +97,15 @@ function setupEventListeners() {
 
             // Update title
             document.getElementById('page-title').innerText = item.querySelector('span').innerText;
-            
+
             if (targetId === 'monthly-view') {
                 document.getElementById('page-subtitle').innerText = "Analyze your monthly growth";
             } else if (targetId === 'expenses-view') {
                 document.getElementById('page-subtitle').innerText = "Control your costs and overheads";
             } else if (targetId === 'dues-view') {
                 document.getElementById('page-subtitle').innerText = "Manage pending customer payments";
+            } else if (targetId === 'savings-view') {
+                document.getElementById('page-subtitle').innerText = "Manage your bank deposits and total savings";
             } else {
                 document.getElementById('page-subtitle').innerText = "Track your everyday business metrics";
             }
@@ -87,7 +125,7 @@ function setupEventListeners() {
 
     // Form Submission
     document.getElementById('record-form').addEventListener('submit', handleFormSubmit);
-    
+
     // Hide modal on outside click
     document.getElementById('record-modal').addEventListener('click', (e) => {
         if (e.target.id === 'record-modal') closeModal();
@@ -95,15 +133,20 @@ function setupEventListeners() {
 }
 
 // Modal Logic
-function openModal() {
+function openModal(isEditMode = false) {
     document.getElementById('record-modal').classList.add('active');
     handleRecordTypeChange(); // Setup correct fields
+    if (!isEditMode) {
+        document.getElementById('modal-title').innerText = "Add New Record";
+        editingTransactionId = null;
+    }
 }
 
 function closeModal() {
     document.getElementById('record-modal').classList.remove('active');
     document.getElementById('record-form').reset();
     document.getElementById('record-date').value = state.selectedDate;
+    editingTransactionId = null;
 }
 
 function handleRecordTypeChange() {
@@ -126,7 +169,7 @@ function handleRecordTypeChange() {
 // Form Submission Handler
 function handleFormSubmit(e) {
     e.preventDefault();
-    
+
     const type = document.getElementById('record-type').value;
     const date = document.getElementById('record-date').value;
     const amount = parseFloat(document.getElementById('record-amount').value);
@@ -152,10 +195,23 @@ function handleFormSubmit(e) {
     if (type === 'due_add' || type === 'due_pay') {
         if (!customer) return alert("Customer name is required.");
         transaction.customer = customer;
-        
+
         // Initialize customer if not exists
         if (!state.customers[customer]) {
             state.customers[customer] = 0;
+        }
+
+        if (editingTransactionId) {
+            // Revert old transaction's effect on customers
+            const oldTx = state.transactions.find(t => t.id === editingTransactionId);
+            if (oldTx) {
+                if (oldTx.type === 'due_add' && state.customers[oldTx.customer]) {
+                    state.customers[oldTx.customer] -= oldTx.amount;
+                    if (state.customers[oldTx.customer] < 0) state.customers[oldTx.customer] = 0;
+                } else if (oldTx.type === 'due_pay' && state.customers[oldTx.customer] !== undefined) {
+                    state.customers[oldTx.customer] += oldTx.amount;
+                }
+            }
         }
 
         if (type === 'due_add') {
@@ -167,7 +223,17 @@ function handleFormSubmit(e) {
         }
     }
 
-    state.transactions.push(transaction);
+    if (editingTransactionId) {
+        transaction.id = editingTransactionId;
+        const previousTx = state.transactions.find(t => t.id === editingTransactionId);
+        if (previousTx) transaction.timestamp = previousTx.timestamp;
+
+        const index = state.transactions.findIndex(t => t.id === editingTransactionId);
+        if (index > -1) state.transactions[index] = transaction;
+    } else {
+        state.transactions.push(transaction);
+    }
+
     saveData();
     closeModal();
     renderAllViews();
@@ -185,29 +251,31 @@ function renderAllViews() {
     renderMonthlyView();
     renderExpenseView();
     renderDuesView();
+    renderSavingsView();
 }
 
 function renderDailyView() {
     const dailyTx = state.transactions.filter(t => t.date === state.selectedDate);
-    
-    let totalIncome = 0; 
+
+    let totalIncome = 0;
     let totalExpense = 0;
-    
+    let dailySavings = 0;
+
     // Core Formulas
     dailyTx.forEach(t => {
-        if (t.type === 'income_cash' || t.type === 'due_pay') {
+        if (t.type === 'income_cash' || t.type === 'income_online' || t.type === 'due_pay') {
             totalIncome += t.amount;
         } else if (t.type === 'expense') {
             totalExpense += t.amount;
+        } else if (t.type === 'savings') {
+            dailySavings += t.amount;
+        } else if (t.type === 'savings_withdraw') {
+            dailySavings -= t.amount;
         }
-        // Note: due_add is considered credit sale, not cash income in hand yet, 
-        // but for total "Sales/Income" of business, user might want to see it.
-        // Based on prompt: Profit = Total Income - Expenses. Net Cash = Cash Received - Expenses.
-        // Let's assume Daily Income here refers to actual cash received for simplicity.
     });
 
     const netProfit = totalIncome - totalExpense;
-    const netCash = totalIncome - totalExpense; // same as above since we count cash + dues received
+    const netCash = totalIncome - totalExpense - dailySavings;
 
     document.getElementById('daily-income').innerText = formatCurrency(totalIncome);
     document.getElementById('daily-expense').innerText = formatCurrency(totalExpense);
@@ -229,7 +297,7 @@ function renderDailyView() {
     // Sort newest first
     dailyTx.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).forEach(t => {
         const tr = document.createElement('tr');
-        
+
         let typeLabel = '';
         let tagClass = '';
         let desc = t.notes || '-';
@@ -239,9 +307,18 @@ function renderDailyView() {
         if (t.type === 'income_cash') {
             typeLabel = 'Cash Sale'; tagClass = 'tag-income'; desc = t.notes || 'Daily Income';
             amountClass = 'text-success'; amountDisplay = '+' + amountDisplay;
+        } else if (t.type === 'income_online') {
+            typeLabel = 'Online Sale'; tagClass = 'tag-online'; desc = t.notes || 'UPI/Bank Transfer';
+            amountClass = 'text-success'; amountDisplay = '+' + amountDisplay;
         } else if (t.type === 'expense') {
             typeLabel = 'Expense'; tagClass = 'tag-expense'; desc = t.category;
             amountClass = 'text-danger'; amountDisplay = '-' + amountDisplay;
+        } else if (t.type === 'savings') {
+            typeLabel = 'Savings'; tagClass = 'tag-savings'; desc = t.notes || 'Deposit to Bank';
+            amountClass = 'text-savings'; amountDisplay = '-' + amountDisplay;
+        } else if (t.type === 'savings_withdraw') {
+            typeLabel = 'Withdrawal'; tagClass = 'tag-savings'; desc = t.notes || 'From Bank';
+            amountClass = 'text-success'; amountDisplay = '+' + amountDisplay;
         } else if (t.type === 'due_add') {
             typeLabel = 'Credit Sale'; tagClass = 'tag-due'; desc = t.customer;
             amountClass = 'text-warning';
@@ -254,7 +331,12 @@ function renderDailyView() {
             <td><span class="tag ${tagClass}">${typeLabel}</span></td>
             <td>${desc}</td>
             <td class="${amountClass} font-bold">${amountDisplay}</td>
-            <td><button class="close-btn" onclick="deleteTransaction('${t.id}')"><i class="ph ph-trash"></i></button></td>
+            <td>
+                <div class="action-btns">
+                    <button class="icon-btn edit-btn" onclick="editTransaction('${t.id}')" title="Edit"><i class="ph ph-pencil-simple"></i></button>
+                    <button class="icon-btn close-btn" onclick="deleteTransaction('${t.id}')" title="Delete"><i class="ph ph-trash"></i></button>
+                </div>
+            </td>
         `;
         tbody.appendChild(tr);
     });
@@ -262,19 +344,24 @@ function renderDailyView() {
 
 function renderMonthlyView() {
     const [year, month] = state.selectedMonth.split('-');
-    
+
     let monthlyIncome = 0;
     let monthlyExpense = 0;
+    let monthlySavings = 0;
     let duesGenerated = 0;
     const expensesByCategory = {};
 
     state.transactions.forEach(t => {
         if (t.date.startsWith(state.selectedMonth)) {
-            if (t.type === 'income_cash' || t.type === 'due_pay') {
+            if (t.type === 'income_cash' || t.type === 'income_online' || t.type === 'due_pay') {
                 monthlyIncome += t.amount;
             } else if (t.type === 'expense') {
                 monthlyExpense += t.amount;
                 expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + t.amount;
+            } else if (t.type === 'savings') {
+                monthlySavings += t.amount;
+            } else if (t.type === 'savings_withdraw') {
+                monthlySavings -= t.amount;
             } else if (t.type === 'due_add') {
                 duesGenerated += t.amount;
             }
@@ -286,6 +373,7 @@ function renderMonthlyView() {
     document.getElementById('monthly-income').innerText = formatCurrency(monthlyIncome);
     document.getElementById('monthly-expense').innerText = formatCurrency(monthlyExpense);
     document.getElementById('monthly-profit').innerText = formatCurrency(monthlyProfit);
+    document.getElementById('monthly-savings').innerText = formatCurrency(monthlySavings);
     document.getElementById('monthly-dues-generated').innerText = formatCurrency(duesGenerated);
 
     // Apply colors
@@ -308,7 +396,7 @@ function renderMonthlyView() {
 function renderExpenseView() {
     // Calculate all-time aggregate
     const expensesByCategory = {};
-    
+
     state.transactions.forEach(t => {
         if (t.type === 'expense') {
             expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + t.amount;
@@ -317,8 +405,8 @@ function renderExpenseView() {
 
     const tbody = document.getElementById('expense-cat-table');
     tbody.innerHTML = '';
-    
-    const categories = Object.keys(expensesByCategory).sort((a,b) => expensesByCategory[b] - expensesByCategory[a]);
+
+    const categories = Object.keys(expensesByCategory).sort((a, b) => expensesByCategory[b] - expensesByCategory[a]);
 
     if (categories.length === 0) {
         tbody.innerHTML = '<tr><td colspan="2" class="empty-state">No expenses recorded yet.</td></tr>';
@@ -339,9 +427,9 @@ function renderExpenseView() {
 function renderDuesView() {
     const tbody = document.getElementById('dues-table');
     tbody.innerHTML = '';
-    
+
     let totalPending = 0;
-    
+
     const customers = Object.keys(state.customers).sort();
 
     if (customers.length === 0) {
@@ -378,25 +466,91 @@ function renderDuesView() {
     document.getElementById('total-pending-amount').innerText = formatCurrency(totalPending);
 }
 
+function renderSavingsView() {
+    const tbody = document.getElementById('savings-table');
+    tbody.innerHTML = '';
+
+    let allSavings = 0;
+    let allWithdraws = 0;
+
+    const stx = state.transactions.filter(t => t.type === 'savings' || t.type === 'savings_withdraw');
+
+    if (stx.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No bank transactions yet.</td></tr>';
+        document.getElementById('total-bank-balance').innerText = '₹0';
+        document.getElementById('total-savings-deposits').innerText = '₹0';
+        return;
+    }
+
+    stx.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).forEach(t => {
+        if (t.type === 'savings') allSavings += t.amount;
+        else allWithdraws += t.amount;
+
+        const tr = document.createElement('tr');
+        const isDep = t.type === 'savings';
+        const displayAmount = formatCurrency(t.amount);
+
+        tr.innerHTML = `
+            <td><span class="tag tag-savings">${isDep ? 'Deposit' : 'Withdrawal'}</span></td>
+            <td>${t.notes || t.date}</td>
+            <td class="${isDep ? 'text-success' : 'text-danger'} font-bold">${isDep ? '+' : '-'}${displayAmount}</td>
+            <td>
+                <div class="action-btns">
+                    <button class="icon-btn edit-btn" onclick="editTransaction('${t.id}')" title="Edit"><i class="ph ph-pencil-simple"></i></button>
+                    <button class="icon-btn close-btn" onclick="deleteTransaction('${t.id}')" title="Delete"><i class="ph ph-trash"></i></button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById('total-bank-balance').innerText = formatCurrency(allSavings - allWithdraws);
+    document.getElementById('total-savings-deposits').innerText = formatCurrency(allSavings);
+}
+
 // Global Help Functions
-window.openReceiveModal = function(customerName) {
+window.openReceiveModal = function (customerName) {
     document.getElementById('record-type').value = 'due_pay';
     openModal();
     document.getElementById('record-customer').value = customerName;
 };
 
-window.deleteTransaction = function(id) {
-    if(!confirm("Are you sure you want to delete this record?")) return;
-    
+window.editTransaction = function (id) {
+    const tx = state.transactions.find(t => t.id === id);
+    if (!tx) return;
+
+    editingTransactionId = id;
+    document.getElementById('modal-title').innerText = "Edit Record";
+
+    document.getElementById('record-type').value = tx.type;
+    document.getElementById('record-date').value = tx.date;
+    document.getElementById('record-amount').value = tx.amount;
+    document.getElementById('record-notes').value = tx.notes || '';
+
+    handleRecordTypeChange();
+
+    if (tx.type === 'expense') {
+        document.getElementById('record-category').value = tx.category;
+    }
+    if (tx.type === 'due_add' || tx.type === 'due_pay') {
+        document.getElementById('record-customer').value = tx.customer;
+    }
+
+    openModal(true);
+};
+
+window.deleteTransaction = function (id) {
+    if (!confirm("Are you sure you want to delete this record?")) return;
+
     const txIndex = state.transactions.findIndex(t => t.id === id);
-    if(txIndex === -1) return;
+    if (txIndex === -1) return;
 
     const tx = state.transactions[txIndex];
-    
+
     // Reverse customer balance if needed
     if (tx.type === 'due_add' && state.customers[tx.customer]) {
         state.customers[tx.customer] -= tx.amount;
-        if(state.customers[tx.customer] < 0) state.customers[tx.customer] = 0;
+        if (state.customers[tx.customer] < 0) state.customers[tx.customer] = 0;
     } else if (tx.type === 'due_pay' && state.customers[tx.customer] !== undefined) {
         state.customers[tx.customer] += tx.amount;
     }
